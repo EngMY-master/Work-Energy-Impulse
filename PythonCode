@@ -1,0 +1,136 @@
+import math
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider, Button
+
+def collision_and_braking_analysis():
+    print("\n=== Collision and Braking Analysis Tool ===")
+
+    while True:
+        # User inputs for collision
+        print("\nEnter Collision Details (leave blank if unknown):")
+        m1 = float(input("Mass of Vehicle 1 (kg): ") or 0)
+        m2 = float(input("Mass of Vehicle 2 (kg): ") or 0)
+        v1i = input("Initial velocity of Vehicle 1 (m/s): ")
+        v2i = input("Initial velocity of Vehicle 2 (m/s): ")
+        e = input("Coefficient of restitution (e): ")
+
+        v1i = float(v1i) if v1i else None
+        v2i = float(v2i) if v2i else None
+        e = float(e) if e else None
+
+        # User inputs for braking
+        print("\nEnter Braking Details (leave blank if unknown):")
+        s = input("Braking distance (m): ")
+        v1f = input("Final velocity of Vehicle 1 (m/s): ")
+
+        s = float(s) if s else None
+        v1f = float(v1f) if v1f else None
+
+        # Initialize data for graphing
+        collision_data = []
+        braking_data = []
+
+        # Collision Analysis
+        if None not in (m1, m2, v1i, v2i, e):
+            print("\n=== Collision Analysis ===")
+            # Solving for final velocities
+            v1f_collision = ((m1 - e * m2) * v1i + (1 + e) * m2 * v2i) / (m1 + m2)
+            v2f_collision = ((m2 - e * m1) * v2i + (1 + e) * m1 * v1i) / (m1 + m2)
+
+            print(f"Final velocity of Vehicle 1 after collision: {v1f_collision:.2f} m/s")
+            print(f"Final velocity of Vehicle 2 after collision: {v2f_collision:.2f} m/s")
+
+            # Energy lost during collision
+            ke_initial = 0.5 * m1 * v1i**2 + 0.5 * m2 * v2i**2
+            ke_final = 0.5 * m1 * v1f_collision**2 + 0.5 * m2 * v2f_collision**2
+            energy_lost = ke_initial - ke_final
+
+            print(f"Energy lost during collision: {energy_lost:.2f} J")
+
+            if ke_initial == ke_final:
+                print("Note: No energy lost during collision due to equal velocities.")
+
+            # Store data for graphing
+            collision_data = [v1i, v2i, v1f_collision, v2f_collision]
+        else:
+            print("\nCollision analysis skipped due to missing inputs.")
+
+        # Braking Analysis
+        if None not in (m1, v1i, s):
+            print("\n=== Braking Analysis ===")
+            # Work-energy principle to calculate braking force
+            if v1f is None:
+                v1f = 0  # Assume vehicle stops completely if final velocity is unknown
+
+            braking_force = (0.5 * m1 * (v1i**2 - v1f**2)) / s
+
+            print(f"Braking force required: {braking_force:.2f} N")
+
+            # Generate braking graph data
+            t = [0, s]  # Braking distance (start and end)
+            velocities = [v1i, v1f]  # Initial and final velocities
+            braking_data = (t, velocities)
+        else:
+            print("\nBraking analysis skipped due to missing inputs.")
+
+        # Visualization
+        visualize_results_with_interactivity(collision_data, braking_data, m1, m2, v1i, v2i, e, s, v1f)
+
+        # Prompt user to analyze another scenario
+        another = input("\nWould you like to analyze another scenario? (yes/no): ").strip().lower()
+        if another != 'yes':
+            print("\nExiting the tool. Thank you for using the Collision and Braking Analysis Tool.")
+            break
+
+def visualize_results_with_interactivity(collision_data, braking_data, m1, m2, v1i, v2i, e, s, v1f):
+    plt.ion()  # Enable interactive mode
+
+    # Plot collision analysis
+    if collision_data:
+        labels = ["v1_initial", "v2_initial", "v1_final", "v2_final"]
+        fig, ax = plt.subplots()
+        bars = plt.bar(labels, collision_data, color=['blue', 'green', 'red', 'orange'])
+        for bar, height in zip(bars, collision_data):
+            ax.text(bar.get_x() + bar.get_width()/2, height + 1, f'{height:.2f}', ha='center', va='bottom')
+        plt.title("Collision Velocities")
+        plt.xlabel("State")
+        plt.ylabel("Velocity (m/s)")
+
+        if collision_data[0] == collision_data[2] and collision_data[1] == collision_data[3]:
+            plt.figtext(0.5, 0.01, "No changes in velocities due to equal initial speeds.", wrap=True, horizontalalignment='center', fontsize=10, color='red')
+
+        plt.show()
+
+    # Plot braking analysis
+    if braking_data:
+        t, velocities = braking_data
+        fig, ax = plt.subplots()
+        line, = plt.plot(t, velocities, marker='o', label='Velocity')
+        plt.title("Braking Analysis")
+        plt.xlabel("Distance (m)")
+        plt.ylabel("Velocity (m/s)")
+        plt.grid()
+        plt.legend()
+
+        # Add dynamic sliders to modify initial velocity and braking distance
+        ax_v1i = plt.axes([0.2, 0.02, 0.65, 0.03])
+        slider_v1i = Slider(ax_v1i, 'Initial Velocity', 0, 100, valinit=v1i)
+
+        ax_s = plt.axes([0.2, 0.07, 0.65, 0.03])
+        slider_s = Slider(ax_s, 'Braking Distance', 1, 20, valinit=s)
+
+        def update(val):
+            new_v1i = slider_v1i.val
+            new_s = slider_s.val
+            new_v1f = v1f or 0
+            new_velocities = [new_v1i, new_v1f]
+            line.set_ydata(new_velocities)
+            ax.set_xlim([0, new_s])
+            fig.canvas.draw_idle()
+
+        slider_v1i.on_changed(update)
+        slider_s.on_changed(update)
+        plt.show(block=True)
+
+# Run the tool
+collision_and_braking_analysis()
